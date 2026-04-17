@@ -1,0 +1,28 @@
+# Use Maven with OpenJDK 17 as base image
+FROM maven:3.9.4-openjdk-17
+
+# Set working directory
+WORKDIR /app
+
+# Copy pom.xml first for better caching
+COPY pom.xml .
+
+# Download dependencies (this layer will be cached if pom.xml doesn't change)
+RUN mvn dependency:go-offline -B
+
+# Copy source code
+COPY src ./src
+
+# Build the application
+RUN mvn clean package -DskipTests
+
+# Create non-root user
+RUN addgroup --system spring && adduser --system spring --ingroup spring
+RUN chown -R spring:spring /app
+USER spring:spring
+
+# Expose port
+EXPOSE 8080
+
+# Run the application
+CMD ["java", "-jar", "target/java-data-api-1.0.0.jar"]

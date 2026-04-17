@@ -1,0 +1,48 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: java-data-api-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: mydatabase
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/main/resources/sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    command: --default-authentication-plugin=mysql_native_password
+
+  aerospike:
+    image: aerospike/aerospike-server:latest
+    container_name: java-data-api-aerospike
+    ports:
+      - "3004:3000"
+      - "3005:3001"
+      - "3006:3002"
+      - "3007:3003"
+    environment:
+      - AEROSPIKE_NAMESPACE=test
+    volumes:
+      - aerospike_data:/opt/aerospike/data
+
+  app:
+    build: .
+    container_name: java-data-api-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/mydatabase?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=password
+      - AEROSPIKE_HOSTS_0_HOST=aerospike
+      - AEROSPIKE_HOSTS_0_PORT=3000
+    depends_on:
+      - mysql
+      - aerospike
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  aerospike_data:

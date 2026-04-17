@@ -1,0 +1,32 @@
+{
+  "name": "java-data-api-tests",
+  "version": "1.0.0",
+  "description": "Test automation suite for Java Data API",
+  "scripts": {
+    "test": "newman run postman/Java-Data-API-Tests.postman_collection.json -e postman/Java-Data-API-Environment.postman_environment.json",
+    "test:html": "newman run postman/Java-Data-API-Tests.postman_collection.json -e postman/Java-Data-API-Environment.postman_environment.json -r html --reporter-html-export newman/reports/test-report.html",
+    "test:ci": "newman run postman/Java-Data-API-Tests.postman_collection.json -e postman/Java-Data-API-Environment.postman_environment.json -r cli,html --reporter-html-export newman/reports/test-report.html --bail",
+    "setup:mysql": "mysql -h localhost -P 3307 -u root -ppassword mydatabase < database/setup-test-data.sql",
+    "setup:aerospike": "node database/setup-aerospike-test-data.js",
+    "setup:all": "npm run setup:mysql && npm run setup:aerospike",
+    "clean:mysql": "mysql -h localhost -P 3307 -u root -ppassword mydatabase -e \"DELETE FROM users WHERE name LIKE 'Test%' OR name LIKE 'Updated%' OR name LIKE 'API%';\"",
+    "clean:aerospike": "node database/clean-aerospike-test-data.js",
+    "clean:all": "npm run clean:mysql && npm run clean:aerospike"
+  },
+  "devDependencies": {
+    "newman": "^6.0.0",
+    "newman-reporter-html": "^1.0.5",
+    "aerospike": "^5.0.0"
+  },
+  "keywords": [
+    "api-testing",
+    "postman",
+    "newman",
+    "java",
+    "spring-boot",
+    "mysql",
+    "aerospike"
+  ],
+  "author": "Java Data API Team",
+  "license": "MIT"
+}

@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # MySQL for testing
+  mysql-test:
+    image: mysql:8.0
+    container_name: java-data-api-mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: mydatabase
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3308:3306"
+    volumes:
+      - ./database/setup-test-data.sql:/docker-entrypoint-initdb.d/setup-test-data.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword"]
+      timeout: 20s
+      retries: 10
+
+  # Aerospike for testing
+  aerospike-test:
+    image: aerospike/aerospike-server:latest
+    container_name: java-data-api-aerospike-test
+    ports:
+      - "3008:3000"
+      - "3009:3001"
+      - "3010:3002"
+      - "3011:3003"
+    environment:
+      - NAMESPACE=test
+      - SET=users
+    healthcheck:
+      test: ["CMD", "asinfo", "-v", "status"]
+      timeout: 20s
+      retries: 10
+
+  # Test data setup service
+  test-data-setup:
+    image: node:18-alpine
+    container_name: java-data-api-test-setup
+    depends_on:
+      mysql-test:
+        condition: service_healthy
+      aerospike-test:
+        condition: service_healthy
+    volumes:
+      - ./database:/app/database
+      - ./package.json:/app/package.json
+    working_dir: /app
+    command: >
+      sh -c "
+        npm install aerospike &&
+        node database/setup-aerospike-test-data.js
+      "
+    environment:
+      - AEROSPIKE_HOSTS=localhost:3008
+
+  # Newman test runner
+  test-runner:
+    image: postman/newman:latest
+    container_name: java-data-api-test-runner
+    depends_on:
+      - test-data-setup
+    volumes:
+      - ./postman:/etc/newman
+      - ./newman/reports:/etc/newman/reports
+    working_dir: /etc/newman
+    command: >
+      newman run Java-Data-API-Tests.postman_collection.json
+      -e Java-Data-API-Environment.postman_environment.json
+      -r html
+      --reporter-html-export reports/test-report.html
+      --delay-request 1000
+      --timeout-request 30000
+    environment:
+      - NEWMAN_BASE_URL=http://host.docker.internal:8080/api
+      - NEWMAN_MYSQL_HOST=host.docker.internal:3307
+      - NEWMAN_AEROSPIKE_HOST=host.docker.internal:3004
