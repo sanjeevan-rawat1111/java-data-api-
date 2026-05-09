@@ -2,6 +2,54 @@
 
 A Spring Boot REST API application that retrieves data from both MySQL and Aerospike databases.
 
+## Architecture
+
+```mermaid
+flowchart TD
+    subgraph CLIENT["📡 CLIENT"]
+        HTTP["HTTP Request\nPOST /api/data/query\nGET /api/data/..."]
+    end
+
+    subgraph SPRING["☕ Spring Boot Application  (port 8080)"]
+        DC["DataController\n@RestController /api/data\nroutes + validation (@Valid)"]
+
+        subgraph SVC["🧠 SERVICE LAYER"]
+            DS["DataService\nprocessDataRequest\nprocessMysqlQuery\nprocessAerospikeQuery\nprocessBothQueries"]
+            AS["AerospikeService\ngetRecord · scanAllRecords\nsearchByBinValue · getRecordCount\nputRecord · updateRecord · deleteRecord"]
+        end
+
+        subgraph REPO["🗃️ REPOSITORY LAYER"]
+            UR["UserRepository\nJpaRepository + custom JPQL\nfindByEmail · findByCity\nfindByAgeBetween\nfindUsersByEmailDomain"]
+        end
+
+        subgraph CFG["⚙️ CONFIG"]
+            AC["AerospikeConfig\n@Bean AerospikeClient\nhost · port from application.yml"]
+        end
+    end
+
+    subgraph DB["💾 DATA STORES"]
+        MY["MySQL 8\nusers table\nJPA / Hibernate"]
+        AE["Aerospike\nnamespace: test\nset: users"]
+    end
+
+    subgraph MODELS["📦 MODELS"]
+        DR["DataRequest\n@NotBlank queryType\n@NotBlank queryParameter"]
+        UR2["UserRequest\n@NotBlank name\n@Email email"]
+        AR["AerospikeRequest\n@NotBlank key\n@NotNull bins"]
+        RESP["DataResponse\nsuccess · message · data\nsource · executionTimeMs"]
+    end
+
+    HTTP --> DC
+    DC --> DS
+    DS --> UR
+    DS --> AS
+    UR --> MY
+    AS --> AE
+    AC --> AS
+    DC -.->|request binding| DR & UR2 & AR
+    DC -.->|response| RESP
+```
+
 ## Features
 
 - **REST API** with POST and GET endpoints
