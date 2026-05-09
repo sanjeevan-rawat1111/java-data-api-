@@ -76,14 +76,8 @@ public class AerospikeService {
     public List<Map<String, Object>> scanAllRecords() {
         List<Map<String, Object>> results = new ArrayList<>();
         
-        try {
-            Statement statement = new Statement();
-            statement.setNamespace(namespace);
-            statement.setSetName(set);
-            
-            QueryPolicy queryPolicy = new QueryPolicy();
-            RecordSet recordSet = aerospikeClient.query(queryPolicy, statement);
-            
+        try (RecordSet recordSet = aerospikeClient.query(new QueryPolicy(),
+                buildStatement(namespace, set))) {
             while (recordSet.next()) {
                 Record record = recordSet.getRecord();
                 Key key = recordSet.getKey();
@@ -96,8 +90,6 @@ public class AerospikeService {
                 
                 results.add(result);
             }
-            
-            recordSet.close();
         } catch (Exception e) {
             throw new RuntimeException("Error scanning records from Aerospike: " + e.getMessage(), e);
         }
@@ -117,23 +109,20 @@ public class AerospikeService {
             statement.setSetName(set);
             statement.setFilter(com.aerospike.client.query.Filter.equal(binName, value));
             
-            QueryPolicy queryPolicy = new QueryPolicy();
-            RecordSet recordSet = aerospikeClient.query(queryPolicy, statement);
-            
-            while (recordSet.next()) {
-                Record record = recordSet.getRecord();
-                Key key = recordSet.getKey();
-                
-                Map<String, Object> result = new HashMap<>();
-                result.put("key", key.userKey.toString());
-                result.put("bins", record.bins);
-                result.put("generation", record.generation);
-                result.put("expiration", record.expiration);
-                
-                results.add(result);
+            try (RecordSet recordSet = aerospikeClient.query(new QueryPolicy(), statement)) {
+                while (recordSet.next()) {
+                    Record record = recordSet.getRecord();
+                    Key key = recordSet.getKey();
+                    
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("key", key.userKey.toString());
+                    result.put("bins", record.bins);
+                    result.put("generation", record.generation);
+                    result.put("expiration", record.expiration);
+                    
+                    results.add(result);
+                }
             }
-            
-            recordSet.close();
         } catch (Exception e) {
             throw new RuntimeException("Error searching records in Aerospike: " + e.getMessage(), e);
         }
@@ -145,24 +134,23 @@ public class AerospikeService {
      * Get record count in the set
      */
     public long getRecordCount() {
-        try {
-            Statement statement = new Statement();
-            statement.setNamespace(namespace);
-            statement.setSetName(set);
-            
-            QueryPolicy queryPolicy = new QueryPolicy();
-            RecordSet recordSet = aerospikeClient.query(queryPolicy, statement);
-            
+        try (RecordSet recordSet = aerospikeClient.query(new QueryPolicy(),
+                buildStatement(namespace, set))) {
             long count = 0;
             while (recordSet.next()) {
                 count++;
             }
-            
-            recordSet.close();
             return count;
         } catch (Exception e) {
             throw new RuntimeException("Error counting records in Aerospike: " + e.getMessage(), e);
         }
+    }
+    
+    private static Statement buildStatement(String namespace, String set) {
+        Statement stmt = new Statement();
+        stmt.setNamespace(namespace);
+        stmt.setSetName(set);
+        return stmt;
     }
     
     /**

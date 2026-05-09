@@ -25,11 +25,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByAgeBetween(Integer minAge, Integer maxAge);
     
     // Custom query to find users by name pattern
-    @Query("SELECT u FROM User u WHERE u.name LIKE %:namePattern%")
+    @Query("SELECT u FROM User u WHERE u.name LIKE CONCAT('%', :namePattern, '%')")
     List<User> findUsersByNamePattern(@Param("namePattern") String namePattern);
     
     // Custom query to find users by email domain
-    @Query("SELECT u FROM User u WHERE u.email LIKE %:domain%")
+    @Query("SELECT u FROM User u WHERE u.email LIKE CONCAT('%', :domain, '%')")
     List<User> findUsersByEmailDomain(@Param("domain") String domain);
     
     // Custom query to get user count by city
